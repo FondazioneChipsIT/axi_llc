@@ -15,15 +15,17 @@ module tb_axi_llc #(
   parameter int unsigned TbNumLines         = 32'd256,
   /// Number of Blocks per cache line
   parameter int unsigned TbNumBlocks        = 32'd8,
+  /// Tag & data sram ECC enabling parameter, bool type
+  parameter bit          TbEnableEcc        = 1,
   /// ID width of the Full AXI slave port, master port has ID `AxiIdWidthFull + 32'd1`
   parameter int unsigned TbAxiIdWidthFull   = 32'd6,
   /// Number of low AXI ID bits used for demux tracking and miss counters.
   parameter int unsigned TbAxiIdLookupBits  =
       (TbAxiIdWidthFull < 32'd4) ? TbAxiIdWidthFull : 32'd4,
   /// Address width of the full AXI bus
-  parameter int unsigned TbAxiAddrWidthFull = 32'd32,
+  parameter int unsigned TbAxiAddrWidthFull = 32'd48,
   /// Data width of the full AXI bus
-  parameter int unsigned TbAxiDataWidthFull = 32'd128,
+  parameter int unsigned TbAxiDataWidthFull = 32'd64,
   /// Width of the Registers
   parameter int unsigned TbRegWidth         = 32'd64,
   /// Number of random write transactions in a testblock.
@@ -46,7 +48,7 @@ module tb_axi_llc #(
   `include "register_interface/assign.svh"
 
   localparam int unsigned TbAxiStrbWidthFull = TbAxiDataWidthFull / 32'd8;
-  localparam int unsigned TbAxiUserWidthFull = 32'd1;
+  localparam int unsigned TbAxiUserWidthFull = 32'd2;
 
   typedef logic [TbAxiIdWidthFull-1:0]     axi_slv_id_t;
   typedef logic [TbAxiIdWidthFull:0]       axi_mst_id_t;
@@ -103,6 +105,16 @@ module tb_axi_llc #(
     VersionHigh   = 32'h44,
     BistStatus    = 32'h48
   } llc_cfg_addr_e;
+
+  typedef enum logic [31:0] {
+    ECC_MANAGER_MISMATCH_COUNT_OFFSET             = 32'h 100,
+    ECC_MANAGER_SCRUB_INTERVAL_OFFSET             = 32'h 104,
+    ECC_MANAGER_SCRUB_FIX_COUNT_OFFSET            = 32'h 108,
+    ECC_MANAGER_SCRUB_UNCORRECTABLE_COUNT_OFFSET  = 32'h 10c,
+    ECC_MANAGER_WRITE_MASK_DATA_N_OFFSET          = 32'h 110,
+    ECC_MANAGER_WRITE_MASK_ECC_N_OFFSET           = 32'h 114
+  } ecc_cfg_addr_e;
+
 
   ////////////////////////////////
   // Stimuli generator typedefs //
@@ -333,7 +345,13 @@ module tb_axi_llc #(
     reg_conf_driver.send_read(NumBlocksHigh,  cfg_data, cfg_error);
     reg_conf_driver.send_read(VersionLow,     cfg_data, cfg_error);
     reg_conf_driver.send_read(VersionHigh,    cfg_data, cfg_error);
-
+    
+    
+    $info("Enable scrubber");
+    for(int i = 0; i < TbSetAssociativity * 2; i++) begin
+      reg_conf_driver.send_write(ECC_MANAGER_SCRUB_INTERVAL_OFFSET + i * 'h20, 32'h10, 4'hF, cfg_error);
+    end
+    
     $info("\n\nRandom read and write");
     reset_perf_counters();
     axi_master.run(TbNumReads, TbNumWrites);
@@ -516,6 +534,7 @@ module tb_axi_llc #(
     .SetAssociativity ( TbSetAssociativity ),
     .NumLines         ( TbNumLines         ),
     .NumBlocks        ( TbNumBlocks        ),
+    .EnableEcc        ( TbEnableEcc        ),
     .AxiIdWidth       ( TbAxiIdWidthFull   ),
     .AxiIdLookupBits  ( TbAxiIdLookupBits  ),
     .AxiAddrWidth     ( TbAxiAddrWidthFull ),
