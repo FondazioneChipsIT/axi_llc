@@ -434,7 +434,7 @@ module axi_llc_tag_store #(
 
     assign ram_rdata_en         [i] = ram_rdata_q_valid_set[i] & ~ram_rdata_q_valid_clr[i] & ~ram_rdata_q_valid[i];
     assign ram_rdata_q_valid_en [i] = ram_rdata_q_valid_set[i] | ram_rdata_q_valid_clr [i];
-    assign ram_rdata_q_valid_set[i] = ~ram_rdata_q_valid[i] & ((|ram_rvalid) | (ram_rvalid_q));
+    assign ram_rdata_q_valid_set[i] = ~ram_rdata_q_valid[i] & (req_q.mode != axi_llc_pkg::Bist) & ((|ram_rvalid) | (ram_rvalid_q));
     assign ram_rdata_q_valid_clr[i] = (res_valid && res_ready);
     assign ram_rdata_q_valid_nxt[i] = ram_rdata_q_valid_set[i] & ~ram_rdata_q_valid_clr[i];
 
@@ -455,7 +455,7 @@ module axi_llc_tag_store #(
 
     // the tag used to compare
     always_comb begin
-      ram_rdata_sel[i] = ram_rdata_q_valid ? ram_rdata_q[i] : ram_rdata[i];
+      ram_rdata_sel[i] = ram_rdata_q_valid[i] ? ram_rdata_q[i] : ram_rdata[i];
       debug_use_forward_tag_tmp[i] = 1'b0;
       if(req_q_q.req_q.index == req_q.index) begin
         if(req_q_q.evict_valid) begin
@@ -472,19 +472,21 @@ module axi_llc_tag_store #(
     end
 
     // comparator (XNOR)
-    tag_t tag_compare;
-    logic i_tag_equ;
+    tag_data_t ram_compared; // comparison result of tags
 
-    assign tag_compare  = (req_q.mode == axi_llc_pkg::Bist) ? bist_pattern.tag : req_q.tag;
-    assign i_tag_equ    = &(ram_rdata.tag ~^ tag_compare);
-    assign tag_equ[i]   = i_tag_equ;
-    assign tag_val[i]   = ram_rdata.val;
-    assign tag_dit[i]   = ram_rdata.dit;
+    assign ram_compared = tag_data_t'{
+          val: bist_pattern.val,
+          dit: bist_pattern.dit,
+          tag: (req_q.mode == axi_llc_pkg::Bist) ? bist_pattern.tag : req_q.tag
+        } ~^ ram_rdata_sel[i];
+    assign tag_equ[i] = &ram_compared.tag;    // valid if the stored tag equals the one looked up
+    assign tag_val[i] = ram_rdata_sel[i].val; // indicates where valid values are in the line
+    assign tag_dit[i] = ram_rdata_sel[i].dit; // indicates which tags are dirty
 
-    assign hit[i]      = req_q.indicator[i] & tag_val[i] & tag_equ[i];
-    assign bist_res[i] = (ram_rdata.val == bist_pattern.val) &
-                         (ram_rdata.dit == bist_pattern.dit) &
-                         i_tag_equ;
+    // hit detection
+    assign hit[i]      = req_q_valid & req_q.indicator[i] & tag_val[i] & tag_equ[i];
+    // BIST also add the two bits of valid and dirty
+    assign bist_res[i] = ram_compared.val & ram_compared.dit & tag_equ[i];
 
     // assignment to wide output signal that goes to the tag output mux
     assign stored_tag[i] = ram_rdata_sel[i];
