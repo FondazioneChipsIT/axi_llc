@@ -476,14 +476,14 @@ module axi_llc_tag_store #(
     logic i_tag_equ;
 
     assign tag_compare  = (req_q.mode == axi_llc_pkg::Bist) ? bist_pattern.tag : req_q.tag;
-    assign i_tag_equ    = &(ram_rdata.tag ~^ tag_compare);
+    assign i_tag_equ    = &(ram_rdata[i].tag ~^ tag_compare);
     assign tag_equ[i]   = i_tag_equ;
-    assign tag_val[i]   = ram_rdata.val;
-    assign tag_dit[i]   = ram_rdata.dit;
+    assign tag_val[i]   = ram_rdata[i].val;
+    assign tag_dit[i]   = ram_rdata[i].dit;
 
     assign hit[i]      = req_q.indicator[i] & tag_val[i] & tag_equ[i];
-    assign bist_res[i] = (ram_rdata.val == bist_pattern.val) &
-                         (ram_rdata.dit == bist_pattern.dit) &
+    assign bist_res[i] = (ram_rdata[i].val == bist_pattern.val) &
+                         (ram_rdata[i].dit == bist_pattern.dit) &
                          i_tag_equ;
 
     // assignment to wide output signal that goes to the tag output mux
