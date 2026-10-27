@@ -434,7 +434,7 @@ module axi_llc_tag_store #(
 
     assign ram_rdata_en         [i] = ram_rdata_q_valid_set[i] & ~ram_rdata_q_valid_clr[i] & ~ram_rdata_q_valid[i];
     assign ram_rdata_q_valid_en [i] = ram_rdata_q_valid_set[i] | ram_rdata_q_valid_clr [i];
-    assign ram_rdata_q_valid_set[i] = ~ram_rdata_q_valid[i] & ((|ram_rvalid) | (ram_rvalid_q));
+    assign ram_rdata_q_valid_set[i] = ~ram_rdata_q_valid[i] & (req_q.mode != axi_llc_pkg::Bist) & ((|ram_rvalid) | (ram_rvalid_q));
     assign ram_rdata_q_valid_clr[i] = (res_valid && res_ready);
     assign ram_rdata_q_valid_nxt[i] = ram_rdata_q_valid_set[i] & ~ram_rdata_q_valid_clr[i];
 
@@ -455,7 +455,7 @@ module axi_llc_tag_store #(
 
     // the tag used to compare
     always_comb begin
-      ram_rdata_sel[i] = ram_rdata_q_valid ? ram_rdata_q[i] : ram_rdata[i];
+      ram_rdata_sel[i] = ram_rdata_q_valid[i] ? ram_rdata_q[i] : ram_rdata[i];
       debug_use_forward_tag_tmp[i] = 1'b0;
       if(req_q_q.req_q.index == req_q.index) begin
         if(req_q_q.evict_valid) begin
