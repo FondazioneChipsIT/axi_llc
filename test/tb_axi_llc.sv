@@ -530,24 +530,8 @@ module tb_axi_llc #(
   ///////////////////////
   // Design under test //
   ///////////////////////
-  axi_llc_reg_wrap #(
-    .SetAssociativity ( TbSetAssociativity ),
-    .NumLines         ( TbNumLines         ),
-    .NumBlocks        ( TbNumBlocks        ),
-    .EnableEcc        ( TbEnableEcc        ),
-    .AxiIdWidth       ( TbAxiIdWidthFull   ),
-    .AxiIdLookupBits  ( TbAxiIdLookupBits  ),
-    .AxiAddrWidth     ( TbAxiAddrWidthFull ),
-    .AxiDataWidth     ( TbAxiDataWidthFull ),
-    .AxiUserWidth     ( TbAxiUserWidthFull ),
-    .slv_req_t        ( axi_slv_req_t      ),
-    .slv_resp_t       ( axi_slv_resp_t     ),
-    .mst_req_t        ( axi_mst_req_t      ),
-    .mst_resp_t       ( axi_mst_resp_t     ),
-    .reg_req_t        ( conf_req_t         ),
-    .reg_resp_t       ( conf_rsp_t         ),
-    .rule_full_t      ( rule_full_t        )
-  ) i_axi_llc_dut (
+  `ifdef GATE_SIM
+    sim_axi_llc i_axi_llc_dut (
     .clk_i               ( clk                                    ),
     .rst_ni              ( rst_n                                  ),
     .test_i              ( test                                   ),
@@ -562,6 +546,40 @@ module tb_axi_llc #(
     .spm_start_addr_i    ( SpmRegionStart                         ),
     .axi_llc_events_o    ( llc_events                             )
   );
+  `else
+    axi_llc_reg_wrap #(
+      .SetAssociativity ( TbSetAssociativity ),
+      .NumLines         ( TbNumLines         ),
+      .NumBlocks        ( TbNumBlocks        ),
+      .EnableEcc        ( TbEnableEcc        ),
+      .AxiIdWidth       ( TbAxiIdWidthFull   ),
+      .AxiIdLookupBits  ( TbAxiIdLookupBits  ),
+      .AxiAddrWidth     ( TbAxiAddrWidthFull ),
+      .AxiDataWidth     ( TbAxiDataWidthFull ),
+      .AxiUserWidth     ( TbAxiUserWidthFull ),
+      .slv_req_t        ( axi_slv_req_t      ),
+      .slv_resp_t       ( axi_slv_resp_t     ),
+      .mst_req_t        ( axi_mst_req_t      ),
+      .mst_resp_t       ( axi_mst_resp_t     ),
+      .reg_req_t        ( conf_req_t         ),
+      .reg_resp_t       ( conf_rsp_t         ),
+      .rule_full_t      ( rule_full_t        )
+    ) i_axi_llc_dut (
+      .clk_i               ( clk                                    ),
+      .rst_ni              ( rst_n                                  ),
+      .test_i              ( test                                   ),
+      .slv_req_i           ( axi_cpu_req                            ),
+      .slv_resp_o          ( axi_cpu_res                            ),
+      .mst_req_o           ( axi_mem_req                            ),
+      .mst_resp_i          ( axi_mem_res                            ),
+      .conf_req_i          ( reg_cfg_req                            ),
+      .conf_resp_o         ( reg_cfg_rsp                            ),
+      .cached_start_addr_i ( CachedRegionStart                      ),
+      .cached_end_addr_i   ( CachedRegionStart + CachedRegionLength ),
+      .spm_start_addr_i    ( SpmRegionStart                         ),
+      .axi_llc_events_o    ( llc_events                             )
+    );
+  `endif
 
   ////////////////////////////
   // `Perf Counter` process //

@@ -20,3 +20,5 @@ vc_hdrs.h
 work-vcs/
 lmgrd.daidir/
 waves/
+
+fault_injection_*
